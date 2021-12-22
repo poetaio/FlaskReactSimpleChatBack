@@ -1,19 +1,6 @@
-import time
 from flask import Flask, make_response, request, abort
 from flask.json import jsonify
 from flask.wrappers import Response
-from werkzeug.utils import redirect
-
-import threading
-
-from werkzeug.wrappers import response
-def setInterval(func, t):
-    def period():
-        while True:
-            time.sleep(t)
-            func()
-    threading.Thread(target=period).start()
-
 
 app = Flask(__name__)
 
@@ -49,10 +36,6 @@ chat_history = {
         ("nusya", "great!"),
     ]
 }
-
-@app.route("/api/")
-def home():
-    return("Init")
 
 # sets cookie value for user
 # 400 - username or password missing
@@ -108,37 +91,6 @@ def get_chat_history():
         
         return Response(status=200)
 
-import redis
-red = redis.StrictRedis()
-
-import datetime
-
-@app.route('/post', methods=['POST'])
-def post():
-    message = request.form['message']
-    now = datetime.datetime.now().replace(microsecond=0).time()
-    red.publish('chat', u'[%s] %s: %s' % (now.isoformat(), "user", message))
-    return Response(status=204)
-
-@app.route("/updater")
-def chat_change_event():
-    def event_stream():
-        pubsub = red.pubsub()
-        pubsub.subscribe('chat')
-        for message in pubsub.listen():
-            print(message)
-            yield('data: %s\n\n' % message['data'])
-
-    return Response(event_stream(), mimetype="text/event-stream")
-    # resp.headers['Connection'] = 'keep-alive'
-    # resp.headers['Content-Type'] = 'text/event-stream'
-    # resp.headers['Cache-Control'] = 'no-cache'
-    # def func():
-    #     resp.
-    # Connection: "keep-alive",
-    # "Content-Type": "text/event-stream",
-    # "Cache-Control": "no-cache",
-
 
 # returns all users usernames with whom user has chat
 # 401 - if username in cookies is missing or invalid
@@ -148,14 +100,6 @@ def get_all_chats():
 
     if username is None or users.get(username) is None:
         abort(401)
-    
-    # user_chats = [
-    #     x[1] for x in chat_history 
-    #         if x[0] == username 
-    #         or
-    #         x[1]
-    #         if x[0] == username
-    # ]
 
     user_chats = []
     for users_pair in chat_history:
