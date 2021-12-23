@@ -1,6 +1,10 @@
-from flask import Flask, make_response, request, abort
+from flask import Flask, make_response, request, abort, session
 from flask.json import jsonify
 from flask.wrappers import Response
+from flask_socketio import SocketIO, join_room, leave_room
+
+socketio = SocketIO()
+
 
 app = Flask(__name__)
 
@@ -13,7 +17,7 @@ users = {
         "name": "mary",
         "password": "12345"
     },
-    "nusya": {
+    "notpoetaio": {
         "name": "den",
         "password": "12345"
     }
@@ -27,16 +31,15 @@ chat_history = {
         ("poetamo", "fine"),
         ("poetamo", "u?"),
         ("poetaio", "great!"),
-    ], ("nusya", "poetaio"): [
-        ("nusya", "hello, ilia"),
-        ("nusya", "how r u?"),
+    ], ("notpoetaio", "poetaio"): [
+        ("notpoetaio", "hello, ilia"),
+        ("notpoetaio", "how r u?"),
         ("poetaio", "hey, n"),
         ("poetaio", "fine"),
         ("poetaio", "u?"),
-        ("nusya", "great!"),
+        ("notpoetaio", "great!"),
     ]
 }
-
 
 def get_username_from_request():
     username = request.cookies.get('username')
@@ -79,6 +82,7 @@ def login():
     
     response = make_response("Login successful")
     response.set_cookie('username', username)
+    session["username"] = username
 
     return response
 
@@ -103,13 +107,9 @@ def get_chat_history():
         abort(Response(f"No user exists with username {user_with}", status=400))
     
     chat_history_key = (username, user_with) if username < user_with else (user_with, username)
-    users_chat_history = chat_history.get(chat_history_key)
+    users_chat_history = chat_history.get(chat_history_key, [])
 
-    if request.method == "GET":
-        if users_chat_history is None:
-            chat_history[chat_history_key] = []
-            return jsonify({"chatHistory": []})
-        
+    if request.method == "GET":        
         return jsonify({"chatHistory": users_chat_history})
     elif request.method == "POST":
         message = request.args.get('message')
@@ -137,4 +137,45 @@ def get_all_chats():
     return jsonify({"allChats": user_chats})
 
 
-app.run("0.0.0.0", port=5000)
+@socketio.on("connect")
+def on_connect():
+    print(f"connecting...")
+
+
+@socketio.on("set_connection")
+def set_connection(user_with):
+    # todo: check for user_with existence
+    # todo add validation
+
+    username = session.get("username")
+    user_with = user_with.get("with")
+
+    room = f"{username}:{user_with}" if username < user_with else f"{user_with}:{username}"
+    join_room(room)
+
+    session["room"] = room
+    session["user_with"] = user_with
+    
+
+@socketio.on("message")
+def on_message(message):
+    username = session.get("username")
+    user_with = session.get("user_with")
+    room = session.get("room")
+
+    chat_history_key = (username, user_with) if username < user_with else (user_with, username)
+    users_chat_history = chat_history.get(chat_history_key, [])
+    users_chat_history.append((username, message))
+    socketio.emit("messages", users_chat_history, room=room)
+    
+    # print(f"message: {message}, from: {session.get('username')}, to {session.get('user_with')}")
+
+
+@socketio.on("client_disconnect")
+def on_disconnect():
+    leave_room(session.get("room"))
+
+
+app.config['SECRET_KEY'] = 'gjr39dkjn344_!67#'
+socketio.init_app(app)
+socketio.run(app, host="0.0.0.0", port=5000)
