@@ -37,6 +37,31 @@ chat_history = {
     ]
 }
 
+
+def get_username_from_request():
+    username = request.cookies.get('username')
+
+    if username is None or users.get(username) is None:
+        abort(401)
+    
+    return username
+
+
+@app.route("/api/login_verify")
+def login_verify():
+    username = request.cookies.get('username')
+
+    if username is None or users.get(username) is None:
+        return Response(status=200)
+    
+    return Response(status=302)
+
+
+@app.route("/api/verify")
+def verify():
+    get_username_from_request()
+    return Response(status=200)
+
 # sets cookie value for user
 # 400 - username or password missing
 # 401 - username or password is incorrect
@@ -58,15 +83,19 @@ def login():
     return response
 
 
+@app.route("/api/logout")
+def logout():
+    response = make_response()
+    response.set_cookie('username', '')
+    return response
+
+
 # returns chat history with the user from url query
 # 401 - no token in cookies username or cookies username is invalid
 # 400 - no such with_user 
 @app.route("/api/chat-history", methods=["GET", "POST"])
 def get_chat_history():
-    username = request.cookies.get('username')
-
-    if username is None or users.get(username) is None:
-        abort(401)
+    username = get_username_from_request()
     
     user_with = request.args.get('username')
 
@@ -96,10 +125,7 @@ def get_chat_history():
 # 401 - if username in cookies is missing or invalid
 @app.route("/api/chats")
 def get_all_chats():
-    username = request.cookies.get('username')
-
-    if username is None or users.get(username) is None:
-        abort(401)
+    username = get_username_from_request()
 
     user_chats = []
     for users_pair in chat_history:
