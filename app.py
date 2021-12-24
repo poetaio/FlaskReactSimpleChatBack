@@ -10,15 +10,18 @@ app = Flask(__name__)
 
 users = {
     "poetaio": {
-        "name": "ilia",
+        "first_name": "ilia",
+        "last_name": "poeta",
         "password": "12345"
     },
     "poetamo": {
-        "name": "mary",
+        "first_name": "Mary",
+        "last_name": "Jane",
         "password": "12345"
     },
-    "notpoetaio": {
-        "name": "den",
+    "markwo": {
+        "first_name": "Mark",
+        "last_name": "Wolson",
         "password": "12345"
     }
 }
@@ -31,13 +34,13 @@ chat_history = {
         ("poetamo", "fine"),
         ("poetamo", "u?"),
         ("poetaio", "great!"),
-    ], ("notpoetaio", "poetaio"): [
-        ("notpoetaio", "hello, ilia"),
-        ("notpoetaio", "how r u?"),
+    ], ("markwo", "poetaio"): [
+        ("markwo", "hello, ilia"),
+        ("markwo", "how r u?"),
         ("poetaio", "hey, n"),
         ("poetaio", "fine"),
         ("poetaio", "u?"),
-        ("notpoetaio", "great!"),
+        ("markwo", "great!"),
     ]
 }
 
@@ -48,6 +51,19 @@ def get_username_from_request():
         abort(401)
     
     return username
+
+
+
+@app.route("/api/profile")
+def profile():
+    username = session.get("username")
+    user = users.get(username)
+
+    return jsonify({
+        "username": username,
+        "firstName": user.get("first_name"),
+        "lastName": user.get("last_name")
+    })
 
 
 @app.route("/api/login_verify")
@@ -65,10 +81,32 @@ def verify():
     get_username_from_request()
     return Response(status=200)
 
+
+@app.route("/api/register", methods=["POST"])
+def register():
+    username = request.args.get('username')
+    first_name = request.args.get('firstName')
+    last_name = request.args.get('lastName')
+    password = request.args.get('password')
+
+    if username is None or password is None or first_name is None or last_name is None:
+        abort(400)
+
+    if username in users:
+        abort(status=401)
+    
+    users[username] = {"first_name": first_name, "last_name": last_name, "password": password}
+
+    response = make_response()
+    # response.set_cookie('username', username)
+    # session["username"] = username
+    
+    return response
+
 # sets cookie value for user
 # 400 - username or password missing
 # 401 - username or password is incorrect
-@app.route("/api/login", methods=["POST", "GET"])
+@app.route("/api/login", methods=["POST"])
 def login():
     username = request.args.get('username')
     password = request.args.get('password')
