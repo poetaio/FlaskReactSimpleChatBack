@@ -23,6 +23,16 @@ users = {
         "first_name": "Mark",
         "last_name": "Wolson",
         "password": "12345"
+    },
+    "johnhem": {
+        "first_name": "Jogn",
+        "last_name": "Hemer",
+        "password": "12345"
+    },
+    "catlan": {
+        "first_name": "Catty",
+        "last_name": "Lannister",
+        "password": "12345"
     }
 }
 
@@ -51,7 +61,6 @@ def get_username_from_request():
         abort(401)
     
     return username
-
 
 
 @app.route("/api/profile")
@@ -132,6 +141,14 @@ def logout():
     return response
 
 
+@app.route("/api/users")
+def get_users():
+    return jsonify([{"value": username, "name": f"{user['first_name']} {user['last_name']}"} 
+        for username, user in users.items()
+        if username != session.get("username")
+    ])
+
+
 # returns chat history with the user from url query
 # 401 - no token in cookies username or cookies username is invalid
 # 400 - no such with_user 
@@ -145,7 +162,7 @@ def get_chat_history():
         abort(Response(f"No user exists with username {user_with}", status=400))
     
     chat_history_key = (username, user_with) if username < user_with else (user_with, username)
-    users_chat_history = chat_history.get(chat_history_key, [])
+    users_chat_history = chat_history.setdefault(chat_history_key, [])
 
     if request.method == "GET":        
         return jsonify({"chatHistory": users_chat_history})
