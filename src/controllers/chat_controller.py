@@ -1,3 +1,4 @@
+from flask_restful import Resource
 from flask_socketio import join_room, leave_room
 from flask import request, abort, Response, jsonify, session
 
@@ -9,21 +10,25 @@ from src.controllers import socketio
 # returns chat history with the user from url query
 # 401 - no token in cookies username or cookies username is invalid
 # 400 - no such with_user 
-@app.route("/api/chat-history", methods=["GET", "POST"])
-def get_chat_history():
-    username = get_username_from_request()
-    
-    user_with = request.args.get('username')
+class ChatHistory(Resource):
+    def get_chat_history(self):
+        username = get_username_from_request()
+        
+        user_with = request.args.get('username')
 
-    if users.get(user_with) is None:
-        abort(Response(f"No user exists with username {user_with}", status=400))
-    
-    chat_history_key = (username, user_with) if username < user_with else (user_with, username)
-    users_chat_history = chat_history.setdefault(chat_history_key, [])
+        if users.get(user_with) is None:
+            abort(Response(f"No user exists with username {user_with}", status=400))
+        
+        chat_history_key = (username, user_with) if username < user_with else (user_with, username)
+        return username, chat_history.setdefault(chat_history_key, [])
 
-    if request.method == "GET":        
-        return jsonify({"chatHistory": users_chat_history})
-    elif request.method == "POST":
+    def get(self):
+        _, users_chat_history = self.get_chat_history()
+        return {"chatHistory": users_chat_history}
+        
+    def post(self):
+        username, users_chat_history = self.get_chat_history()
+
         message = request.args.get('message')
         if message is None or message == "":
             abort(400)
@@ -35,18 +40,18 @@ def get_chat_history():
 
 # returns all users usernames with whom user has chat
 # 401 - if username in cookies is missing or invalid
-@app.route("/api/chats")
-def get_all_chats():
-    username = get_username_from_request()
+class Chats(Resource):
+    def get(self):
+        username = get_username_from_request()
 
-    user_chats = []
-    for users_pair in chat_history:
-        if users_pair[0] == username:
-            user_chats.append(users_pair[1])
-        elif users_pair[1] == username:
-            user_chats.append(users_pair[0])
+        user_chats = []
+        for users_pair in chat_history:
+            if users_pair[0] == username:
+                user_chats.append(users_pair[1])
+            elif users_pair[1] == username:
+                user_chats.append(users_pair[0])
 
-    return jsonify({"allChats": user_chats})
+        return jsonify({"allChats": user_chats})
 
 
 @socketio.on("connect")

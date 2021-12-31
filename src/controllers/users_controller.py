@@ -1,11 +1,15 @@
 from flask import session, jsonify
+from flask_restful import Resource
 
-from src.controllers import main as app
-from src.resources.data import users, chat_history
+from src.resources.data import users
 
-@app.route("/api/users")
-def get_users():
-    return jsonify([{"value": username, "name": f"{user['first_name']} {user['last_name']}"} 
-        for username, user in users.items()
-        if username != session.get("username")
-    ])
+class Users(Resource):
+    def get(self):
+        return [{
+            "value": username, 
+            "name": f"{user['first_name']} {user['last_name']}"
+            } 
+            for username, user in users.items()
+            if username != session.get("username")
+        ]
+
