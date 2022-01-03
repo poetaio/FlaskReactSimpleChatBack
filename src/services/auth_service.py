@@ -1,9 +1,9 @@
-from repos import user_repo
+from services import user_service
 from models import AuthUser
 
 class AuthService:
     def login(self, auth_user: AuthUser):
-        user = user_repo.get_user(auth_user.username)
+        user = user_service.get_user(auth_user.username)
         print(user.username, user.password)
         if not user:
             return False

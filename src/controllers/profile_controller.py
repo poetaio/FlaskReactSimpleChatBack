@@ -2,15 +2,17 @@ from flask import session
 from flask.json import jsonify
 from flask_restful import Resource
 
-from data import users
+from services import user_service
+
+
     
 class Profile(Resource):
     def get(self):
         username = session.get("username")
-        user = users.get(username)
+        user = user_service.get_user(username)
 
         return {
-            "username": username,
-            "firstName": user.get("first_name"),
-            "lastName": user.get("last_name")
+            "username": user.username,
+            "firstName": user.first_name,
+            "lastName": user.last_name
         }

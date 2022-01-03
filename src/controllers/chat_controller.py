@@ -1,8 +1,10 @@
-from flask_restful import Resource
+import re
+from flask_restful import Resource, reqparse
 from flask_socketio import join_room, leave_room
 from flask import request, abort, Response, jsonify, session
 
-from data import users, chat_history
+from services import user_service, chat_service, message_service
+
 from . import socketio, get_username_from_request
 
 # returns chat history with the user from url query
@@ -14,24 +16,35 @@ class ChatHistory(Resource):
         
         user_with = request.args.get('username')
 
-        if users.get(user_with) is None:
+        if not user_service.get_user(user_with):
             abort(Response(f"No user exists with username {user_with}", status=400))
         
-        chat_history_key = (username, user_with) if username < user_with else (user_with, username)
-        return username, chat_history.setdefault(chat_history_key, [])
+        users_tuple = (username, user_with) if username < user_with else (user_with, username)
+        # TODO: move everything to service
+        chat_id = chat_service.get_chat(*users_tuple).chat_id
+        
+        return username, [m.to_dict() for m in message_service.get_messages(chat_id)]
 
     def get(self):
+        # TODO: split in two controllers: Messages (list all messages, or the last one)
+        # and Chat(only chat info, description in future)
         _, users_chat_history = self.get_chat_history()
         return {"chatHistory": users_chat_history}
         
     def post(self):
-        username, users_chat_history = self.get_chat_history()
-
+        # TODO: replace with json
         message = request.args.get('message')
         if message is None or message == "":
             abort(400)
+
+        username = get_username_from_request()
+        user_with = request.args.get('username')
+        users_tuple = (username, user_with) if username < user_with else (user_with, username)
+
+        # TODO: save chat_id in session
+        chat = chat_service.get_chat(users_tuple)
         
-        users_chat_history.append((username, message))
+        message_service.add_message(chat.chat_id, username, message)
         
         return Response(status=200)
 
@@ -43,11 +56,12 @@ class Chats(Resource):
         username = get_username_from_request()
 
         user_chats = []
-        for users_pair in chat_history:
-            if users_pair[0] == username:
-                user_chats.append(users_pair[1])
-            elif users_pair[1] == username:
-                user_chats.append(users_pair[0])
+        # TODO: replace with chat.service.get_user_chats(username)
+        for chat in chat_service.get_all():
+            if chat.user_1 == username:
+                user_chats.append(chat.user_2)
+            elif chat.user_2 == username:
+                user_chats.append(chat.user_1)
 
         return jsonify({"allChats": user_chats})
 
@@ -65,7 +79,8 @@ def set_connection(user_with):
     username = session.get("username")
     user_with = user_with.get("with")
 
-    room = f"{username}:{user_with}" if username < user_with else f"{user_with}:{username}"
+    # TODO: remove .chat_id()
+    room = chat_service.get_chat(username, user_with).chat_id
     join_room(room)
 
     session["room"] = room
@@ -75,17 +90,17 @@ def set_connection(user_with):
 @socketio.on("message")
 def on_message(message):
     username = session.get("username")
-    user_with = session.get("user_with")
     room = session.get("room")
 
-    chat_history_key = (username, user_with) if username < user_with else (user_with, username)
-    users_chat_history = chat_history.get(chat_history_key, [])
-    users_chat_history.append((username, message))
-    print(users_chat_history)
+    message_service.add_message(room, username, message)
+    users_chat_history = [m.to_dict() for m in message_service.get_messages(room)]
+    # new_message = {
+    #     "from": username,
+    #     ""
+    # }
+
     socketio.emit("messages", users_chat_history, room=room)
     
-    # print(f"message: {message}, from: {session.get('username')}, to {session.get('user_with')}")
-
 
 @socketio.on("client_disconnect")
 def on_disconnect():

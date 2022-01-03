@@ -5,3 +5,11 @@ class User:
         self.first_name = first_name
         self.last_name = last_name
         self.password = password
+        
+    def to_dict(self):
+        return {
+            "username": self.username,
+            "firstName": self.first_name,
+            "lastName": self.last_name,
+            "password": self.password
+        }

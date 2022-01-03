@@ -1,17 +1,17 @@
+from typing import Any
 from flask import make_response, request, abort, session, Response
 from flask_restful import Resource, reqparse
 
 from .utils import get_username_from_request
-from data import users
-from services import auth_service
-from models import AuthUser
+from services import auth_service, user_service
+from models import AuthUser, User
 
 
 class LoginVerify(Resource):
     def get(self):
         username = request.cookies.get('username')
 
-        if username is None or users.get(username) is None:
+        if not username or not user_service.get_user(username):
             return '', 204
         
         return '', 302
@@ -53,20 +53,11 @@ class Register(Resource):
         first_name = data.get('firstName')
         last_name = data.get('lastName')
         password = data.get('password')
-
-        if username is None or password is None or first_name is None or last_name is None:
-            abort(400)
-
-        if username in users:
-            abort(status=401)
         
-        users[username] = {"first_name": first_name, "last_name": last_name, "password": password}
-
-        response = make_response('')
-        # response.set_cookie('username', username)
-        # session["username"] = username
-        
-        return response
+        try:
+            return user_service.add_user(User(None, username, first_name, last_name, password)).to_dict(), 200
+        except BaseException as err:
+            abort(401)
 
 
 # sets cookie value for user
