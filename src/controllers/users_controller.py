@@ -1,7 +1,7 @@
 from flask import session, jsonify
 from flask_restful import Resource
 
-from src.resources.data import users
+from data import users
 
 class Users(Resource):
     def get(self):

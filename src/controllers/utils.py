@@ -1,4 +1,4 @@
-from src.resources.data import users
+from data import users
 from flask import request, abort
 
 def get_username_from_request():

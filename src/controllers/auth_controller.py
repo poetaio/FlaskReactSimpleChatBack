@@ -1,33 +1,58 @@
 from flask import make_response, request, abort, session, Response
-from flask_restful import Resource
+from flask_restful import Resource, reqparse
 
-from src.controllers.utils import get_username_from_request
-from src.controllers import main as app
-from src.resources.data import users
+from .utils import get_username_from_request
+from data import users
+from services import auth_service
+from models import AuthUser
 
-@app.route("/api/login_verify")
+
 class LoginVerify(Resource):
     def get(self):
         username = request.cookies.get('username')
 
         if username is None or users.get(username) is None:
-            return Response(status=200)
+            return '', 204
         
-        return Response(status=302)
+        return '', 302
 
 
 class Verify(Resource):
     def get(self):
         get_username_from_request()
-        return Response(status=200)
+        return '', 204
 
 
 class Register(Resource):
+    parser = reqparse.RequestParser()
+    parser.add_argument('username',
+        type=str,
+        required=True,
+        help="'username' is required non empty field"
+    )
+    parser.add_argument('firstName',
+        type=str,
+        required=True,
+        help="'firstName' is required non empty field"
+    )
+    parser.add_argument('lastName',
+        type=str,
+        required=True,
+        help="'lastName' is required non empty field"
+    )
+    parser.add_argument('password',
+        type=str,
+        required=True,
+        help="'password' is required non empty field"
+    )
+
     def post(self):
-        username = request.args.get('username')
-        first_name = request.args.get('firstName')
-        last_name = request.args.get('lastName')
-        password = request.args.get('password')
+        data = self.parser.parse_args()
+
+        username = data.get('username')
+        first_name = data.get('firstName')
+        last_name = data.get('lastName')
+        password = data.get('password')
 
         if username is None or password is None or first_name is None or last_name is None:
             abort(400)
@@ -37,7 +62,7 @@ class Register(Resource):
         
         users[username] = {"first_name": first_name, "last_name": last_name, "password": password}
 
-        response = make_response()
+        response = make_response('')
         # response.set_cookie('username', username)
         # session["username"] = username
         
@@ -48,18 +73,27 @@ class Register(Resource):
 # 400 - username or password missing
 # 401 - username or password is incorrect
 class Login(Resource):
+    parser = reqparse.RequestParser()
+    parser.add_argument('username',
+        type=str,
+        required=True,
+        help="'username' is a required non empty field"
+    )
+    parser.add_argument('password',
+        type=str,
+        required=True,
+        help="'password' is  a required non empty field"
+    )
+
     def post(self):
-        username = request.args.get('username')
-        password = request.args.get('password')
+        data = self.parser.parse_args()
+        username = data['username']
+        password = data['password']
 
-        if username is None or password is None:
-            abort(400)
-
-        user = users.get(username)
-        if user is None or user.get("password") != password:
-            abort(status=401)
+        if not auth_service.login(AuthUser(username, password)):
+            return "", 401
         
-        response = make_response("Login successful")
+        response = make_response('')
         response.set_cookie('username', username)
         session["username"] = username
 
@@ -68,6 +102,7 @@ class Login(Resource):
 
 class Logout(Resource):
     def get(self):
-        response = make_response()
+        response = make_response('')
         response.set_cookie('username', '')
-        return response, 200
+        response.status = 204
+        return response

@@ -1,15 +1,10 @@
 from flask import Flask
 from flask_socketio import SocketIO
 from flask_restful import Api
-from src.controllers.auth_controller import Login, LoginVerify, Logout, Register, Verify
-from src.controllers.chat_controller import ChatHistory, Chats
-from src.controllers.profile_controller import Profile
-from src.controllers.users_controller import Users
 
-# from src.controllers.main import main as main_blueprint
-# from src.controllers.socketio import socketio
-
-from src.controllers import main as main_blueprint, socketio
+from controllers import *
+from controllers import main as main_blueprint
+from services import db_service
 
 app = Flask(__name__)
 
@@ -27,6 +22,8 @@ api.add_resource(Logout, "/api/logout")
 api.add_resource(Register, "/api/register")
 api.add_resource(Verify, "/api/verify")
 api.add_resource(LoginVerify, "/api/login_verify")
+
+db_service.init_db()
 
 socketio.init_app(app)
 socketio.run(app, host="0.0.0.0", port=5000)

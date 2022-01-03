@@ -2,8 +2,7 @@ from flask import session
 from flask.json import jsonify
 from flask_restful import Resource
 
-from src.controllers import main as app
-from src.resources.data import users, chat_history
+from data import users
     
 class Profile(Resource):
     def get(self):

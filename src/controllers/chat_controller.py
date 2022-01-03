@@ -2,10 +2,8 @@ from flask_restful import Resource
 from flask_socketio import join_room, leave_room
 from flask import request, abort, Response, jsonify, session
 
-from src.controllers import main as app
-from src.resources.data import users, chat_history
-from src.controllers.utils import get_username_from_request
-from src.controllers import socketio
+from data import users, chat_history
+from . import socketio, get_username_from_request
 
 # returns chat history with the user from url query
 # 401 - no token in cookies username or cookies username is invalid
